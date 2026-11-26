@@ -3,7 +3,7 @@ class AppUser {
   final int id;
   final String username;
 
-  /// Path relatif (/api/auth/avatar/<id>?v=<ver>) atau null.
+  /// Path relatif (/api/auth/avatar/ID?v=VERSI) atau null.
   final String? avatar;
 
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
