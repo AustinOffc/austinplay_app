@@ -6,8 +6,15 @@ class AppUser {
   /// Path relatif (/api/auth/avatar/ID?v=VERSI) atau null.
   final String? avatar;
 
+  /// Server memakai BIGSERIAL, jadi id bisa datang sebagai angka ATAU string.
+  static int _toInt(Object? v) {
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
-        id: (j['id'] as num?)?.toInt() ?? 0,
+        id: _toInt(j['id']),
         username: (j['username'] as String?) ?? '',
         avatar: j['avatar'] as String?,
       );
