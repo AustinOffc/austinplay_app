@@ -1,0 +1,40 @@
+name: auzify
+description: Auzify - streaming musik dengan lirik.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.9.0 <4.0.0'
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: 5.9.0
+  flutter_riverpod: 2.6.1
+  go_router: 14.8.1
+  flutter_secure_storage: 9.2.4
+  shared_preferences: 2.5.3
+  cached_network_image: 3.4.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+  # Font: taruh file Plus Jakarta Sans (500/600/700/800) di assets/fonts/, lalu aktifkan blok ini.
+  # fonts:
+  #   - family: PlusJakartaSans
+  #     fonts:
+  #       - asset: assets/fonts/PlusJakartaSans-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/PlusJakartaSans-Bold.ttf
+  #         weight: 700
+  #       - asset: assets/fonts/PlusJakartaSans-ExtraBold.ttf
+  #         weight: 800
