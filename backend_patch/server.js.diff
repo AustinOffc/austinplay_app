@@ -1,0 +1,18 @@
+--- web/src/server.js	2026-11-23 21:56:50.000000000 +0000
++++ backend_patch/src/server.js	2026-11-26 13:53:53.134770377 +0000
+@@ -99,10 +99,15 @@
+ app.all('/api/romanize', H('romanize'));
+ 
+ // ── Akun & sinkronisasi antar device ──
++// [PATCH Tahap 5] hapus akun: harus SEBELUM router /api/auth
++app.use('/api/auth/account', require('./routes/account.routes'));
+ app.use('/api/auth', require('./routes/auth.routes'));
+ app.use('/api/sync', require('./routes/sync.routes'));
+ app.use('/api/together', require('./routes/together.routes'));
++// [PATCH Tahap 5] moderasi (lapor/blokir) harus SEBELUM router chat; halaman legal, assetlinks, config app
++app.use('/api', require('./routes/moderation.routes'));
+ app.use('/api/chat', require('./routes/chat.routes'));
++app.use('/', require('./routes/app.routes'));
+ 
+ // Endpoint /api/* yang tidak ada -> JSON 404 (jangan jatuh ke halaman SPA).
+ app.use('/api', (req, res) => {

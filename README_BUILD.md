@@ -1,6 +1,6 @@
 # Auzify Flutter — Panduan Build dari HP
 
-Status: **Tahap 1 (fondasi)**. Lihat `CHECKLIST.md` untuk fitur yang sudah/belum ada.
+Status: **Tahap 5 (rilis: hapus akun, moderasi UGC, dokumen store, patch backend)**. Lihat `CHECKLIST.md` untuk fitur yang sudah/belum ada.
 
 ## 1. Taruh di GitHub
 1. Buat repo privat baru di GitHub (app GitHub / browser HP).
@@ -37,3 +37,23 @@ biasanya wajib closed test dengan sejumlah penguji ≥ 14 hari sebelum produksi 
 Flutter 3.35.7 · Java 17 · AGP 8.9.1 · Gradle 8.12 · Kotlin 2.1.0 · compileSdk/targetSdk 36 · minSdk 24.
 Google Play mewajibkan targetSdk 36 untuk app baru sejak 31 Agu 2026. Versi app: `1.0.0+1`
 (angka sebelum `+` = versionName, setelah `+` = versionCode yang harus naik tiap upload).
+
+## Tahap 5: yang baru
+- **Patch backend** wajib dipasang sebelum rilis (hapus akun, lapor/blokir, halaman /privacy /terms /hapus-akun, assetlinks): lihat `backend_patch/README.md`.
+- **Dokumen Play Store**: folder `store/` (mulai dari `RELEASE_GUIDE.md`).
+- **Ikon & splash native** sudah ada di `android/app/src/main/res` (tanpa paket tambahan).
+- **versionCode** AAB release otomatis = nomor run GitHub Actions (`--build-number`). Naikkan `version:` di `pubspec.yaml` (mis. `1.0.1+1`) untuk versionName baru; ubah juga `AppConfig.appVersion`.
+- Artifact baru `auzify-r8-mapping` (mapping R8) — simpan untuk membaca crash.
+- Ganti `applicationId` hanya SEKARANG (sebelum rilis): `android/app/build.gradle.kts`, `MainActivity.kt` (package + folder), `AndroidManifest.xml` (channel id di `main.dart`), `assetlinks`.
+
+## Tahap 6: fitur pemutar
+Antrean, timer tidur, equalizer, SponsorBlock (lihat `CHECKLIST.md`). Tidak butuh patch backend baru (memakai `/api/sponsorblock` yang sudah ada). Paket baru: tidak ada.
+
+## Tahap 7: Beranda
+Chart, Radio, Top Hits (lihat `CHECKLIST.md`). Tidak ada perubahan backend dan tidak ada paket baru.
+
+## Tahap 8: lirik
+Tombol Aa (sorot per kata, geser waktu, romanisasi, bagikan gambar). Tidak ada perubahan backend dan tidak ada paket baru.
+
+## Tahap 9: sisa fitur
+Ganti cover playlist, Simpan album/playlist sebagai playlist baru, cache lirik offline, jeda/lanjut unduhan (lihat `CHECKLIST.md`). Tidak ada perubahan backend dan tidak ada paket baru. Tes baru: `test/lyrics_cache_test.dart`.

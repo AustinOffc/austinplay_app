@@ -1,6 +1,7 @@
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import '../core/icons.dart';
+import '../core/layout.dart';
 import '../core/theme/tokens.dart';
 
 class NavItem {
@@ -158,6 +159,55 @@ class _NavTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Rail vertikal untuk layar lebar (≥1024dp). Gaya sama dengan nav bawah: kaca, tanpa glow.
+class GlassRail extends StatelessWidget {
+  const GlassRail({super.key, required this.index, required this.onTap});
+  final int index;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final pad = MediaQuery.paddingOf(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12 + pad.left, 12 + pad.top, 0, 12 + pad.bottom),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: T.shadow,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              width: kRailWidth - 12,
+              decoration: BoxDecoration(
+                color: const Color.fromRGBO(255, 255, 255, .82),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: T.glassEdge),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < kNavItems.length; i++)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onTap(i),
+                      child: SizedBox(
+                        height: 66,
+                        child: _NavTile(item: kNavItems[i], active: i == index),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

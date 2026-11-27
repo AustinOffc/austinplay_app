@@ -33,6 +33,9 @@ jobs:
       - name: Lengkapi scaffolding Android
         run: flutter create --platforms=android --org id.austin --project-name auzify .
 
+      - name: Turunkan domain App Links dari API_BASE
+        run: echo "APP_LINK_HOST=$(echo "${API_BASE:-https://auzify.example.com}" | sed -E 's#^https?://##; s#/.*$##')" >> "$GITHUB_ENV"
+
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
@@ -58,10 +61,18 @@ jobs:
 
       - name: AAB release
         if: env.KEYSTORE_BASE64 != ''
-        run: flutter build appbundle --release --dart-define=API_BASE=${API_BASE:-https://auzify.example.com}
+        run: flutter build appbundle --release --build-number=${{ github.run_number }} --dart-define=API_BASE=${API_BASE:-https://auzify.example.com}
 
       - uses: actions/upload-artifact@v4
         if: env.KEYSTORE_BASE64 != ''
         with:
           name: auzify-release-aab
           path: build/app/outputs/bundle/release/app-release.aab
+
+      # Pemetaan R8 supaya laporan crash di Play Console bisa dibaca.
+      - uses: actions/upload-artifact@v4
+        if: env.KEYSTORE_BASE64 != ''
+        with:
+          name: auzify-r8-mapping
+          path: build/app/outputs/mapping/release/mapping.txt
+          if-no-files-found: ignore

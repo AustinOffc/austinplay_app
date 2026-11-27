@@ -53,4 +53,19 @@ class AuthService {
     if (token is! String) throw ApiException('Balasan server tidak dikenali.');
     return token;
   }
+
+  /// Unggah foto profil (data URL jpeg/png/webp ≤150 KB). Mengembalikan path avatar baru.
+  Future<String?> setAvatar(String dataUrl) async {
+    final r = await _api.put('/api/auth/avatar', data: {'image': dataUrl});
+    return r['avatar'] as String?;
+  }
+
+  /// Hapus akun permanen (butuh password). Server menghapus data sinkron, pesan chat, dan daftar blokir.
+  Future<void> deleteAccount(String password) async {
+    await _api.delete('/api/auth/account', data: {'password': password}, soft401: true);
+  }
+
+  Future<void> removeAvatar() async {
+    await _api.delete('/api/auth/avatar');
+  }
 }

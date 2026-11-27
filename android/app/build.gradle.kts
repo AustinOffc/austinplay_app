@@ -36,6 +36,9 @@ android {
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Domain backend untuk Android App Links (dari env APP_LINK_HOST yang diisi CI dari API_BASE).
+        manifestPlaceholders["appLinkHost"] =
+            System.getenv("APP_LINK_HOST") ?: "auzify.example.com"
     }
 
     signingConfigs {

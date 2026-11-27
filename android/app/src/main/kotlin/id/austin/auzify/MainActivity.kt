@@ -1,5 +1,6 @@
 package id.austin.auzify
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity()
+// Wajib AudioServiceActivity agar audio_service bisa mengikat ke Activity.
+class MainActivity : AudioServiceActivity()

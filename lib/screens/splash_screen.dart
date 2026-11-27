@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/tokens.dart';
 import '../providers/core_providers.dart';
+import '../providers/nav_providers.dart';
 import '../widgets/app_background.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -26,7 +27,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       ref.read(authProvider.notifier).init(),
       Future<void>.delayed(const Duration(milliseconds: 1800)),
     ]);
-    if (mounted) context.go('/home');
+    if (!mounted) return;
+    final router = GoRouter.of(context);
+    final link = DeepLinks.pending;
+    DeepLinks.pending = null;
+    router.go('/home');
+    _openLink(router, link);
+  }
+
+  /// Buka tautan yang masuk saat app masih memuat (/play, /artist, /album, ?together=KODE).
+  void _openLink(GoRouter router, String? link) {
+    if (link == null) return;
+    final uri = Uri.tryParse(link);
+    if (uri == null) return;
+    if (uri.path.isEmpty || uri.path == '/') {
+      final code = uri.queryParameters['together'];
+      if (code != null && code.isNotEmpty) {
+        ref.read(pendingJoinProvider.notifier).state = code.toUpperCase();
+        router.go('/room');
+      }
+      return;
+    }
+    if (uri.path.startsWith('/play/') ||
+        uri.path.startsWith('/artist/') ||
+        uri.path.startsWith('/album/')) {
+      router.push(uri.toString());
+    }
   }
 
   @override

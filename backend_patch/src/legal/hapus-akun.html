@@ -1,0 +1,41 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FFE9F1"><title>Hapus Akun - Auzify</title><style>
+:root{--bg1:#FFF6F9;--bg2:#FFE9F1;--ink:#3A2530;--ink2:#5F4655;--ink3:#7D6270;--accent:#D4467A;--accent2:#B83264;--danger:#C43C52;--line:rgba(150,80,110,.14)}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:linear-gradient(160deg,#FFF6F9 0%,#FFE9F1 46%,#FBD9E7 100%);min-height:100vh;line-height:1.6}
+main{max-width:760px;margin:0 auto;padding:28px 18px 60px}
+.card{background:rgba(255,255,255,.74);border:1px solid rgba(255,255,255,.9);border-radius:20px;padding:22px 20px;box-shadow:0 8px 24px rgba(110,60,85,.08);margin-bottom:16px}
+h1{font-size:1.55rem;font-weight:800;letter-spacing:-.01em;margin:0 0 6px}h2{font-size:1.1rem;font-weight:800;margin:22px 0 6px}h3{font-size:1rem;margin:14px 0 4px}
+p,li{font-size:.95rem;color:var(--ink2)}ul{padding-left:20px}a{color:var(--accent2)}small{color:var(--ink3)}
+input{width:100%;font-size:16px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.78);margin:6px 0 10px}
+button{font-size:16px;font-weight:700;border:0;border-radius:999px;padding:12px 22px;background:var(--accent);color:#fff;cursor:pointer;width:100%}button:disabled{opacity:.6}
+button.danger{background:var(--danger)}.msg{font-weight:700;margin-top:10px}.err{color:var(--danger)}.ok{color:#2f8f5b}hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+</style></head><body><main><div class="card">
+<h1>Hapus akun Auzify</h1>
+<p>Halaman ini menghapus akun Auzify-mu secara <strong>permanen</strong>: akun, data sinkronisasi (suka, playlist, riwayat), pesan Chat Global, dan daftar blokir. Tindakan ini tidak bisa dibatalkan. Kamu juga bisa melakukannya di aplikasi: Profil → Hapus akun.</p>
+<p><small>Delete your Auzify account permanently: account, sync data, chat messages and block list. This cannot be undone.</small></p>
+<label for="u">Username</label><input id="u" autocomplete="username" autocapitalize="none" spellcheck="false">
+<label for="p">Password</label><input id="p" type="password" autocomplete="current-password">
+<label><input id="c" type="checkbox" style="width:auto;margin-right:8px">Saya mengerti akun saya akan dihapus permanen.</label>
+<div style="height:12px"></div>
+<button id="go" class="danger">Hapus akun saya</button>
+<div id="m" class="msg" role="status"></div>
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i)};
+  function say(t,ok){var m=$('m');m.textContent=t;m.className='msg '+(ok?'ok':'err')}
+  async function j(url,opt){var r=await fetch(url,opt);var d={};try{d=await r.json()}catch(e){}
+    if(!r.ok||d.success===false){throw new Error(d.message||'Permintaan gagal ('+r.status+').')}return d}
+  $('go').addEventListener('click',async function(){
+    var u=$('u').value.trim(),p=$('p').value;
+    if(!u||!p){say('Isi username dan password.');return}
+    if(!$('c').checked){say('Centang kotak persetujuan dulu.');return}
+    $('go').disabled=true;say('Memproses…',true);
+    try{
+      var l=await j('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+      await j('/api/auth/account',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':'Bearer '+l.token},body:JSON.stringify({password:p})});
+      $('u').value='';$('p').value='';
+      say('Akun berhasil dihapus. Terima kasih sudah memakai Auzify.',true);
+    }catch(e){say(e.message||'Gagal menghapus akun.');$('go').disabled=false}
+  });
+})();
+</script>
+</div></main></body></html>

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +6,7 @@ import '../core/api_client.dart';
 import '../core/storage.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import 'library_providers.dart';
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => TokenStore());
 
@@ -73,12 +75,25 @@ class AuthController extends Notifier<AuthState> {
       final u = await ref.read(authServiceProvider).me().timeout(const Duration(seconds: 6));
       await _saveUser(u);
       state = AuthState(ready: true, user: u);
+      _startSync(u);
     } catch (_) {
+      final c = state.user;
+      if (c != null) _startSync(c);
       // Offline / lambat: tetap pakai data tersimpan. 401 ditangani interceptor.
     }
   }
 
+  void _startSync(AppUser u) {
+    final s = ref.read(syncServiceProvider);
+    s.userId = u.id;
+    s.startPolling();
+    unawaited(s.sync());
+  }
+
   Future<void> _expired() async {
+    final s = ref.read(syncServiceProvider);
+    s.userId = null;
+    await s.onSignedOut();
     await ref.read(tokenStoreProvider).clear();
     await _saveUser(null);
     state = const AuthState(ready: true);
@@ -95,9 +110,62 @@ class AuthController extends Notifier<AuthState> {
       await ref.read(tokenStoreProvider).save(res.token);
       await _saveUser(res.user);
       state = AuthState(ready: true, user: res.user);
+      _startSync(res.user);
       return null;
     } catch (e) {
       state = state.copyWith(busy: false);
+      return ApiClient.messageOf(e);
+    }
+  }
+
+  /// Ganti foto profil. Mengembalikan pesan error, atau null bila sukses.
+  Future<String?> uploadAvatar(String dataUrl) async {
+    final u = state.user;
+    if (u == null) return 'Belum masuk.';
+    try {
+      final path = await ref.read(authServiceProvider).setAvatar(dataUrl);
+      final next = AppUser(id: u.id, username: u.username, avatar: path);
+      await _saveUser(next);
+      state = state.copyWith(user: next);
+      return null;
+    } catch (e) {
+      return ApiClient.messageOf(e);
+    }
+  }
+
+  Future<String?> removeAvatar() async {
+    final u = state.user;
+    if (u == null) return 'Belum masuk.';
+    try {
+      await ref.read(authServiceProvider).removeAvatar();
+      final next = AppUser(id: u.id, username: u.username);
+      await _saveUser(next);
+      state = state.copyWith(user: next);
+      return null;
+    } catch (e) {
+      return ApiClient.messageOf(e);
+    }
+  }
+
+  /// Ubah password. Token baru disimpan; perangkat lain otomatis keluar.
+  /// Mengembalikan pesan error, atau null bila sukses.
+  Future<String?> changePassword(String oldPassword, String newPassword) async {
+    try {
+      final token = await ref.read(authServiceProvider).changePassword(oldPassword, newPassword);
+      await ref.read(tokenStoreProvider).save(token);
+      return null;
+    } catch (e) {
+      return ApiClient.messageOf(e);
+    }
+  }
+
+  /// Hapus akun permanen. Mengembalikan pesan error, atau null bila sukses.
+  Future<String?> deleteAccount(String password) async {
+    try {
+      await ref.read(authServiceProvider).deleteAccount(password);
+      await _expired();
+      return null;
+    } catch (e) {
       return ApiClient.messageOf(e);
     }
   }

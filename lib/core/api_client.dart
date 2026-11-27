@@ -99,4 +99,51 @@ class ApiClient {
       throw ApiException(messageOf(e), status: e.response?.statusCode);
     }
   }
+
+  Future<Map<String, dynamic>> put(String path, {Object? data, bool soft401 = false}) async {
+    try {
+      final r = await dio.put<dynamic>(path,
+          data: data, options: Options(extra: {'soft401': soft401}));
+      return _unwrap(r);
+    } on DioException catch (e) {
+      throw ApiException(messageOf(e), status: e.response?.statusCode);
+    }
+  }
+
+  Future<Map<String, dynamic>> delete(String path, {Object? data, bool soft401 = false}) async {
+    try {
+      final r = await dio.delete<dynamic>(path,
+          data: data, options: Options(extra: {'soft401': soft401}));
+      return _unwrap(r);
+    } on DioException catch (e) {
+      throw ApiException(messageOf(e), status: e.response?.statusCode);
+    }
+  }
+
+  /// GET tanpa pembungkus (mis. /api/suggest yang membalas array).
+  Future<dynamic> getRaw(String path, {Map<String, dynamic>? query}) async {
+    try {
+      final r = await dio.get<dynamic>(path,
+          queryParameters: query, options: Options(extra: {'soft401': true}));
+      return r.data;
+    } on DioException catch (e) {
+      throw ApiException(messageOf(e), status: e.response?.statusCode);
+    }
+  }
+
+  /// POST yang mengembalikan Response apa adanya (status 4xx/5xx tidak dilempar),
+  /// dipakai /api/ytplay supaya `code` & `retryable` bisa dibaca.
+  Future<Response<dynamic>> rawPost(String path, {Object? data, Duration? timeout}) async {
+    try {
+      return await dio.post<dynamic>(path,
+          data: data,
+          options: Options(
+            receiveTimeout: timeout,
+            validateStatus: (s) => s != null && s < 600,
+            extra: {'soft401': true},
+          ));
+    } on DioException catch (e) {
+      throw ApiException(messageOf(e), status: e.response?.statusCode);
+    }
+  }
 }

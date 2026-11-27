@@ -1,0 +1,11 @@
+--- web/src/routes/together.routes.js	2026-11-25 00:37:00.000000000 +0000
++++ backend_patch/src/routes/together.routes.js	2026-11-26 13:53:53.134897024 +0000
+@@ -92,7 +92,7 @@
+   return pid ? room.members.get(pid) : null;
+ };
+ const memberView = (room, m) => ({
+-  pid: m.pid, name: m.name, avatar: m.avatar, host: m.pid === room.hostPid,
++  pid: m.pid, name: m.name, avatar: m.avatar, host: m.pid === room.hostPid, uid: m.userId ? Number(m.userId) : null, // [PATCH Tahap 5] uid untuk lapor/blokir
+   online: m.conns.size > 0, joinedAt: m.joinedAt, since: m.since, guest: !m.userId,
+ });
+ const membersEvent = (room) => ({ hostPid: room.hostPid, members: [...room.members.values()].map((m) => memberView(room, m)) });
