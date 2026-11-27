@@ -47,6 +47,7 @@ class AppIcons {
   static const IconData playlist = Icons.queue_music_rounded;
   static const IconData share = Icons.share_outlined;
   static const IconData send = Icons.send_rounded;
+  static const IconData sendOutline = Icons.send_outlined;
   static const IconData lock = Icons.lock_outline_rounded;
   static const IconData camera = Icons.photo_camera_outlined;
   static const IconData copy = Icons.content_copy_rounded;

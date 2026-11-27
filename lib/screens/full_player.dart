@@ -298,12 +298,22 @@ class _LikeButton extends ConsumerWidget {
   }
 }
 
-class _ActionRow extends ConsumerWidget {
+class _ActionRow extends ConsumerStatefulWidget {
   const _ActionRow({required this.videoId});
   final String videoId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ActionRow> createState() => _ActionRowState();
+}
+
+class _ActionRowState extends ConsumerState<_ActionRow> {
+  // Tombol aksi disembunyikan secara default; dibuka lewat tombol titik tiga.
+  bool _open = false;
+
+  String get videoId => widget.videoId;
+
+  @override
+  Widget build(BuildContext context) {
     final ds = ref.read(downloadServiceProvider);
     ref.watch(downloadVersionProvider);
     final saved = ref.watch(libraryProvider.select((l) => l.playlists.any((p) => p.songs.any((s) => s.videoId == videoId))));
@@ -387,7 +397,27 @@ class _ActionRow extends ConsumerWidget {
             () => _showSpeedSheet(context)),
       ],
     );
-    return Column(mainAxisSize: MainAxisSize.min, children: [top, bottom]);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: T.ease,
+          alignment: Alignment.bottomCenter,
+          child: _open
+              ? Column(mainAxisSize: MainAxisSize.min, children: [top, bottom])
+              : const SizedBox(width: double.infinity),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            tooltip: _open ? 'Sembunyikan' : 'Opsi lainnya',
+            onPressed: () => setState(() => _open = !_open),
+            icon: Icon(AppIcons.more, size: 26, color: _open ? T.accent2 : T.ink2),
+          ),
+        ),
+      ],
+    );
   }
 }
 

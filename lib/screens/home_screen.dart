@@ -342,6 +342,24 @@ Widget _songGrid(BuildContext context, WidgetRef ref, List<Track> songs) {
   );
 }
 
+/// Baris horizontal (scroll ke samping) seperti "Terakhir diputar" di web.
+Widget _songRail(WidgetRef ref, List<Track> songs) {
+  final handler = ref.read(audioHandlerProvider);
+  return SizedBox(
+    height: 196,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      itemCount: songs.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (_, i) => SizedBox(
+        width: 132,
+        child: SongCard(track: songs[i], onTap: () => handler.playQueue(songs, i)),
+      ),
+    ),
+  );
+}
+
 Widget _artistPills(List<BrowseItem> artists, void Function(BrowseItem) onTap) {
   return Wrap(
     spacing: 8,
@@ -413,7 +431,7 @@ class _DefaultSections extends ConsumerWidget {
         const SizedBox(height: 22),
         if (recent.isNotEmpty) ...[
           const _SectionTitle('Terakhir diputar'),
-          _songGrid(context, ref, recent),
+          _songRail(ref, recent),
           const SizedBox(height: 22),
         ],
         const _ChartSection(),

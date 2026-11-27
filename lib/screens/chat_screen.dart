@@ -8,14 +8,11 @@ import '../models/chat_message.dart';
 import '../providers/chat_providers.dart';
 import '../providers/core_providers.dart';
 import '../providers/moderation_providers.dart';
-import '../providers/music_providers.dart';
 import '../widgets/buttons.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/moderation_sheets.dart';
-import '../widgets/page_header.dart';
 import '../widgets/toast.dart';
 import '../widgets/track_actions.dart';
-import '../widgets/user_avatar.dart';
 
 /// Chat Global (wajib login). Pesan dihapus otomatis server setelah 7 hari.
 class ChatScreen extends ConsumerStatefulWidget {
@@ -127,44 +124,52 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final loggedIn = ref.watch(authProvider.select((s) => s.loggedIn));
     final st = ref.watch(chatProvider);
-    return Column(
-      children: [
-        PageHeader(
-          title: 'Chat',
-          trailing: loggedIn && st.connected
-              ? Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: T.glass2,
-                    borderRadius: BorderRadius.circular(T.rPill),
-                    border: Border.all(color: T.glassEdge),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+    final top = MediaQuery.paddingOf(context).top;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12, top + 12, 12, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header persis seperti web: judul + subjudul di kiri, pill status di kanan.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF3DBE7A)),
-                      ),
-                      const SizedBox(width: 6),
-                      Text('${st.online} online',
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w700, color: T.ink2)),
+                      Text('Chat Global',
+                          style: TextStyle(
+                              fontSize: 22,
+                              height: 1.1,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                              color: T.ink)),
+                      SizedBox(height: 2),
+                      Text('Pesan otomatis terhapus setelah 7 hari',
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: T.ink3)),
                     ],
                   ),
-                )
-              : null,
-        ),
-        Expanded(child: loggedIn ? _body(context, st) : _loginPrompt(context)),
-      ],
+                ),
+                if (loggedIn) ...[
+                  const SizedBox(width: 10),
+                  _StatusPill(connected: st.connected, online: st.online),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(child: loggedIn ? _body(context, st) : _loginPrompt(context)),
+        ],
+      ),
     );
   }
 
   Widget _loginPrompt(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(12),
         child: GlassCard(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -188,15 +193,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  /// Susun pesan (urut lama → baru) + pemisah hari + penanda "satu pengirim beruntun".
+  List<_Entry> _entries(List<ChatMessage> msgs) {
+    final out = <_Entry>[];
+    ChatMessage? prev;
+    for (final m in msgs) {
+      final sameDay = prev != null && _sameDay(prev.ts, m.ts);
+      if (prev == null || !sameDay) out.add(_Entry.day(_dayLabel(m.ts)));
+      final grouped = prev != null && sameDay && prev.uid == m.uid && (m.ts - prev.ts) < 5 * 60000;
+      out.add(_Entry.msg(m, grouped));
+      prev = m;
+    }
+    return out;
+  }
+
   Widget _body(BuildContext context, ChatState st) {
-    final hasPlayer = ref.watch(hasPlayerProvider);
-    final view = View.of(context);
-    final keyboardOpen = view.viewInsets.bottom > 0;
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
-    final navPad = keyboardOpen ? 8.0 : (66 + 10 + safeBottom + (hasPlayer ? 76 : 0) + 8);
+    final mq = MediaQuery.of(context);
+    final keyboardOpen = mq.viewInsets.bottom > 0;
+    // Scaffold shell memakai extendBody: padding.bottom SUDAH berisi tinggi nav + mini player + safe area.
+    // Jangan ditambah lagi (itu penyebab celah besar di atas kolom tulis pesan).
+    final bottomPad = keyboardOpen ? 8.0 : mq.padding.bottom + 10;
     final blocked = ref.watch(blockedIdsProvider);
     final msgs = st.messages.where((m) => !blocked.contains(m.uid)).toList();
-    final count = msgs.length + (st.hasMore ? 1 : 0);
+    final entries = _entries(msgs);
 
     Widget list;
     if (st.loading && msgs.isEmpty) {
@@ -206,40 +225,60 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            st.error.isNotEmpty ? st.error : 'Belum ada pesan. Sapa yang lain!',
+            st.error.isNotEmpty ? st.error : 'Belum ada pesan. Jadilah yang pertama menyapa 👋',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: T.ink3),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: T.ink3),
           ),
         ),
       );
     } else {
-      list = ListView.builder(
-        controller: _scroll,
-        reverse: true,
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-        itemCount: count,
-        itemBuilder: (_, i) {
-          if (i >= msgs.length) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) ref.read(chatProvider.notifier).loadOlder();
-            });
-            return const Padding(
-              padding: EdgeInsets.all(12),
-              child: Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: T.accent),
-                ),
-              ),
-            );
-          }
-          final m = msgs[msgs.length - 1 - i];
-          return _Bubble(
-            key: ValueKey<int>(m.id),
-            msg: m,
-            mine: m.uid == st.meId,
-            onLongPress: () => _onLongPress(m, st),
+      list = LayoutBuilder(
+        builder: (context, box) {
+          final maxW = box.maxWidth * 0.82;
+          return ListView.builder(
+            controller: _scroll,
+            reverse: true,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: entries.length + 1,
+            itemBuilder: (_, i) {
+              // Item terakhir (paling atas) = pemuat pesan lama atau catatan aturan.
+              if (i >= entries.length) {
+                if (st.hasMore) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) ref.read(chatProvider.notifier).loadOlder();
+                  });
+                  return const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: T.accent),
+                      ),
+                    ),
+                  );
+                }
+                return const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
+                  child: Text(
+                    'Tahan pesan untuk menyalin, melapor, atau memblokir. Dilarang spam, pelecehan, dan SARA.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: T.ink4),
+                  ),
+                );
+              }
+              final e = entries[entries.length - 1 - i];
+              if (e.day != null) return _DayChip(label: e.day!);
+              final m = e.msg!;
+              return _Bubble(
+                key: ValueKey<int>(m.id),
+                msg: m,
+                mine: m.uid == st.meId,
+                grouped: e.grouped,
+                maxWidth: maxW,
+                onLongPress: () => _onLongPress(m, st),
+              );
+            },
           );
         },
       );
@@ -247,73 +286,118 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Column(
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Text('Pesan dihapus otomatis setelah 7 hari. Tahan pesan untuk melapor/memblokir. Dilarang spam, pelecehan, dan SARA.',
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: T.ink4)),
-        ),
         if (!st.connected && msgs.isNotEmpty)
           const Padding(
-            padding: EdgeInsets.only(top: 4),
+            padding: EdgeInsets.only(bottom: 4),
             child: Text('Menyambungkan ulang…',
                 style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: T.accent2)),
           ),
-        Expanded(child: list),
+        // Kotak kaca pembungkus daftar pesan (sama seperti .chat-list di web).
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: T.glass3,
+              borderRadius: BorderRadius.circular(T.rLg),
+              border: Border.all(color: T.line),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: list,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _compose(),
         Padding(
-          padding: EdgeInsets.fromLTRB(12, 6, 12, navPad),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _text,
-                  minLines: 1,
-                  maxLines: 4,
-                  textCapitalization: TextCapitalization.sentences,
-                  inputFormatters: [LengthLimitingTextInputFormatter(500)],
-                  style: const TextStyle(fontSize: 16, color: T.ink, fontWeight: FontWeight.w600),
-                  decoration: InputDecoration(
-                    hintText: 'Tulis pesan…',
-                    hintStyle: const TextStyle(color: T.ink4, fontWeight: FontWeight.w500),
-                    filled: true,
-                    fillColor: const Color.fromRGBO(255, 255, 255, .78),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: const BorderSide(color: T.line)),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: const BorderSide(color: T.line)),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                        borderSide: const BorderSide(color: T.accent)),
-                  ),
+          padding: EdgeInsets.only(top: 4, bottom: bottomPad),
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _text,
+            builder: (_, v, __) => SizedBox(
+              height: 12,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Text(v.text.length > 400 ? '${v.text.length}/500' : '',
+                      style: const TextStyle(fontSize: 10.5, color: T.ink3)),
                 ),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _send,
-                child: Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _sending ? T.accentTint : T.accent,
-                  ),
-                  child: _sending
-                      ? const Padding(
-                          padding: EdgeInsets.all(13),
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(AppIcons.send, size: 22, color: Colors.white),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],
     );
   }
+
+  Widget _compose() {
+    OutlineInputBorder border(Color c) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(22), borderSide: BorderSide(color: c));
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _text,
+            minLines: 1,
+            maxLines: 4,
+            textCapitalization: TextCapitalization.sentences,
+            inputFormatters: [LengthLimitingTextInputFormatter(500)],
+            style: const TextStyle(fontSize: 16, height: 1.3, color: T.ink, fontWeight: FontWeight.w500),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Tulis pesan…',
+              hintStyle: const TextStyle(color: T.ink4, fontWeight: FontWeight.w500),
+              filled: true,
+              fillColor: T.glass2,
+              constraints: const BoxConstraints(minHeight: 44),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              border: border(T.line),
+              enabledBorder: border(T.line),
+              focusedBorder: border(T.accent),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _text,
+          builder: (_, v, __) {
+            final enabled = v.text.trim().isNotEmpty && !_sending;
+            return GestureDetector(
+              onTap: enabled ? _send : null,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _sending ? .7 : (enabled ? 1.0 : .4),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(shape: BoxShape.circle, color: T.accent),
+                  child: _sending
+                      ? const Padding(
+                          padding: EdgeInsets.all(13),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(AppIcons.sendOutline, size: 20, color: Colors.white),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// ───────────────────────── helpers ─────────────────────────
+
+class _Entry {
+  const _Entry.day(String label)
+      : day = label,
+        msg = null,
+        grouped = false;
+  const _Entry.msg(ChatMessage m, this.grouped)
+      : msg = m,
+        day = null;
+  final String? day;
+  final ChatMessage? msg;
+  final bool grouped;
 }
 
 String _hhmm(int ms) {
@@ -323,75 +407,157 @@ String _hhmm(int ms) {
   return '$h:$m';
 }
 
+bool _sameDay(int a, int b) {
+  final x = DateTime.fromMillisecondsSinceEpoch(a);
+  final y = DateTime.fromMillisecondsSinceEpoch(b);
+  return x.year == y.year && x.month == y.month && x.day == y.day;
+}
+
+const _hari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+const _bulan = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+String _dayLabel(int ms) {
+  final now = DateTime.now();
+  if (_sameDay(ms, now.millisecondsSinceEpoch)) return 'Hari ini';
+  if (_sameDay(ms, now.subtract(const Duration(days: 1)).millisecondsSinceEpoch)) return 'Kemarin';
+  final d = DateTime.fromMillisecondsSinceEpoch(ms);
+  return '${_hari[d.weekday - 1]}, ${d.day} ${_bulan[d.month - 1]}';
+}
+
+/// Warna nama pengirim per user — rumus sama dengan web: hsl(hue, 55%, 38%).
+Color _nameColor(String name) {
+  var h = 0;
+  for (final c in name.codeUnits) {
+    h = (h * 31 + c) % 360;
+  }
+  return HSLColor.fromAHSL(1, h.toDouble(), .55, .38).toColor();
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.connected, required this.online});
+  final bool connected;
+  final int online;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: T.glass2,
+        borderRadius: BorderRadius.circular(T.rPill),
+        border: Border.all(color: T.line),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: connected ? const Color(0xFF2FB96B) : const Color(0xFFB9A3AE)),
+          ),
+          const SizedBox(width: 6),
+          Text(connected ? '${online < 1 ? 1 : online} online' : 'Menyambung…',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: T.ink2)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayChip extends StatelessWidget {
+  const _DayChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(color: T.glass2, borderRadius: BorderRadius.circular(T.rPill)),
+          child: Text(label,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: T.ink3)),
+        ),
+      ),
+    );
+  }
+}
+
 class _Bubble extends StatelessWidget {
-  const _Bubble({super.key, required this.msg, required this.mine, required this.onLongPress});
+  const _Bubble({
+    super.key,
+    required this.msg,
+    required this.mine,
+    required this.grouped,
+    required this.maxWidth,
+    required this.onLongPress,
+  });
   final ChatMessage msg;
   final bool mine;
+  final bool grouped;
+  final double maxWidth;
   final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    final maxW = MediaQuery.sizeOf(context).width * 0.74;
+    final fg = mine ? Colors.white : T.ink;
     final bubble = GestureDetector(
       onLongPress: onLongPress,
       child: Container(
-        constraints: BoxConstraints(maxWidth: maxW),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        padding: const EdgeInsets.fromLTRB(11, 7, 11, 5),
         decoration: BoxDecoration(
           color: mine ? T.accent : T.glass2,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(mine ? 18 : 5),
-            bottomRight: Radius.circular(mine ? 5 : 18),
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(mine ? 16 : 5),
+            bottomRight: Radius.circular(mine ? 5 : 16),
           ),
-          border: mine ? null : Border.all(color: T.glassEdge),
+          border: mine ? null : Border.all(color: T.line),
           boxShadow: mine ? null : T.shadowSm,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!mine)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Text(msg.username,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: T.accent2)),
+        // IntrinsicWidth: gelembung membungkus isi (tidak melebar penuh karena Align jam).
+        child: IntrinsicWidth(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!mine && !grouped)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 1),
+                  child: Text(msg.username,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w800, color: _nameColor(msg.username))),
+                ),
+              Text(msg.text,
+                  style: TextStyle(fontSize: 14.5, height: 1.38, fontWeight: FontWeight.w500, color: fg)),
+              const SizedBox(height: 2),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(_hhmm(msg.ts),
+                    style: TextStyle(
+                        fontSize: 10.5, fontWeight: FontWeight.w500, color: fg.withAlpha(184))),
               ),
-            Text(msg.text,
-                style: TextStyle(
-                    fontSize: 14.5,
-                    height: 1.3,
-                    fontWeight: FontWeight.w500,
-                    color: mine ? Colors.white : T.ink)),
-            const SizedBox(height: 3),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(_hhmm(msg.ts),
-                  style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: mine ? const Color.fromRGBO(255, 255, 255, .8) : T.ink4)),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: EdgeInsets.fromLTRB(6, grouped ? 1.5 : 4.5, 6, grouped ? 1.5 : 4.5),
       child: Row(
         mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!mine) ...[
-            UserAvatar(name: msg.username, userId: msg.uid, size: 30),
-            const SizedBox(width: 8),
-          ],
-          Flexible(child: bubble),
-        ],
+        children: [Flexible(child: bubble)],
       ),
     );
   }

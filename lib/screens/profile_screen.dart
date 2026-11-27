@@ -10,10 +10,8 @@ import '../core/theme/tokens.dart';
 import '../models/user.dart';
 import '../core/icons.dart';
 import '../providers/core_providers.dart';
-import '../models/sb_segment.dart';
 import '../providers/library_providers.dart';
 import '../providers/moderation_providers.dart';
-import '../widgets/chips.dart';
 import '../widgets/buttons.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/moderation_sheets.dart';
@@ -43,8 +41,6 @@ class ProfileScreen extends ConsumerWidget {
                 const _SyncCard(),
                 const SizedBox(height: 14),
               ],
-              const _SettingsCard(),
-              const SizedBox(height: 14),
               GlassCard(
                 onTap: () => context.push('/stats'),
                 child: const Row(
@@ -259,90 +255,6 @@ class _AccountCard extends ConsumerWidget {
               label: 'Hapus akun',
               danger: true,
               onPressed: () => _deleteAccount(context, ref)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingsCard extends ConsumerWidget {
-  const _SettingsCard();
-
-  static const List<double> _rates = [0.75, 1.0, 1.25, 1.5];
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final st = ref.watch(settingsProvider);
-    final ctrl = ref.read(settingsProvider.notifier);
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Pemutar',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: T.ink)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Expanded(
-                child: Text('Putar lagu berikutnya otomatis',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: T.ink2)),
-              ),
-              Switch(
-                value: st.autoNext,
-                onChanged: ctrl.setAutoNext,
-                activeTrackColor: T.accent,
-                inactiveTrackColor: T.accentSoft,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text('Kecepatan putar',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: T.ink2)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final r in _rates)
-                AppChip(
-                  label: '${r}x',
-                  active: (st.rate - r).abs() < 0.01,
-                  onTap: () => ctrl.setRate(r),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              const Expanded(
-                child: Text('SponsorBlock — lewati segmen non-musik',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: T.ink2)),
-              ),
-              Switch(
-                value: st.sponsorBlock,
-                onChanged: ctrl.setSponsorBlock,
-                activeTrackColor: T.accent,
-                inactiveTrackColor: T.accentSoft,
-              ),
-            ],
-          ),
-          if (st.sponsorBlock) ...[
-            const Text('Data komunitas sponsor.ajay.app. Pilih yang dilewati:',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: T.ink3)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final e in SbSegment.labels.entries)
-                  AppChip(
-                    label: e.value,
-                    active: st.sbCats.contains(e.key),
-                    onTap: () => ctrl.toggleSbCategory(e.key),
-                  ),
-              ],
-            ),
-          ],
         ],
       ),
     );
