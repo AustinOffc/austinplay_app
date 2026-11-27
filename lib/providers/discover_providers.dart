@@ -15,9 +15,12 @@ const List<(String, String, String)> kCharts = [
 const Duration _chartTtl = Duration(hours: 6);
 
 /// Hasil pencarian yang di-cache lokal 6 jam (kunci tidak disinkronkan).
+/// Kalau pencarian baru gagal/kosong, cache lama (walau sudah kedaluwarsa) tetap dipakai
+/// supaya Chart tidak kosong hanya karena YouTube sedang error.
 Future<List<Track>> _cachedSongs(Ref ref, String key, String query, int limit) async {
   final store = ref.read(localStoreProvider);
   final raw = store.get(key);
+  List<Track> stale = const [];
   if (raw != null && raw.isNotEmpty) {
     try {
       final v = jsonDecode(raw);
@@ -28,11 +31,17 @@ Future<List<Track>> _cachedSongs(Ref ref, String key, String query, int limit) a
             if (e is Map) Track.fromJson(Map<String, dynamic>.from(e)),
         ];
         if (age >= 0 && age < _chartTtl.inMilliseconds && list.isNotEmpty) return list;
+        stale = list;
       }
     } catch (_) {}
   }
-  final fresh =
-      MusicService.dedupe(await ref.read(musicServiceProvider).searchSongs(query)).take(limit).toList();
+  final svc = ref.read(musicServiceProvider);
+  var fresh = MusicService.dedupe(await svc.searchSongs(query)).take(limit).toList();
+  if (fresh.isEmpty) {
+    // coba sekali lagi setelah jeda singkat (server kadang baru selesai ganti jalur pencarian)
+    await Future<void>.delayed(const Duration(seconds: 2));
+    fresh = MusicService.dedupe(await svc.searchSongs(query)).take(limit).toList();
+  }
   if (fresh.isNotEmpty) {
     await store.put(
       key,
@@ -41,8 +50,9 @@ Future<List<Track>> _cachedSongs(Ref ref, String key, String query, int limit) a
         'l': [for (final t in fresh) t.toJson()],
       }),
     );
+    return fresh;
   }
-  return fresh;
+  return stale;
 }
 
 final chartProvider = FutureProvider.family<List<Track>, String>((ref, key) {

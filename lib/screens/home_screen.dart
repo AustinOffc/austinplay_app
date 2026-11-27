@@ -458,6 +458,19 @@ class _ChartSection extends ConsumerStatefulWidget {
 class _ChartSectionState extends ConsumerState<_ChartSection> {
   String _key = kCharts.first.$1;
 
+  Widget _chartEmpty() => Row(
+        children: [
+          const Expanded(
+            child: Text('Chart tidak tersedia saat ini.',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: T.ink3)),
+          ),
+          TextButton(
+            onPressed: () => ref.invalidate(chartProvider(_key)),
+            child: const Text('Coba lagi'),
+          ),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
     final res = ref.watch(chartProvider(_key));
@@ -480,11 +493,9 @@ class _ChartSectionState extends ConsumerState<_ChartSection> {
             height: 150,
             child: Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: T.accent)),
           ),
-          error: (_, __) => const Text('Chart tidak tersedia saat ini.',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: T.ink3)),
+          error: (_, __) => _chartEmpty(),
           data: (list) => list.isEmpty
-              ? const Text('Chart tidak tersedia saat ini.',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: T.ink3))
+              ? _chartEmpty()
               : SizedBox(
                   height: 196,
                   child: ListView.separated(

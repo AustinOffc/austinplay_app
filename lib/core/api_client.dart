@@ -41,6 +41,18 @@ class ApiClient {
   /// Dipanggil saat server menjawab 401 untuk sesi yang valid-sebelumnya.
   void Function()? onUnauthorized;
 
+  /// Pesan mentah dari library HTTP di server (mis. axios) diganti kalimat yang jelas.
+  static String _friendly(String m, int? code) {
+    if (m.startsWith('Request failed with status code')) {
+      final c = int.tryParse(m.split(' ').last) ?? code;
+      if (c == 403 || c == 429) {
+        return 'Server belum bisa mengambil data dari YouTube saat ini. Coba lagi sebentar lagi.';
+      }
+      return 'Server sedang bermasalah mengambil data, coba lagi nanti.';
+    }
+    return m;
+  }
+
   static String messageOf(Object e) {
     if (e is ApiException) return e.message;
     if (e is DioException) {
@@ -48,7 +60,7 @@ class ApiClient {
       final d = e.response?.data;
       if (d is Map) {
         final m = d['message'] ?? d['error'];
-        if (m is String && m.isNotEmpty) return m;
+        if (m is String && m.isNotEmpty) return _friendly(m, code);
       }
       if (code == 429) return 'Terlalu banyak permintaan, coba lagi sebentar.';
       switch (e.type) {
@@ -72,7 +84,7 @@ class ApiClient {
     final map = d is Map<String, dynamic> ? d : <String, dynamic>{};
     if (map['success'] == false || map['status'] == false) {
       final m = map['message'] ?? map['error'];
-      throw ApiException(m is String && m.isNotEmpty ? m : 'Permintaan gagal.',
+      throw ApiException(m is String && m.isNotEmpty ? _friendly(m, res.statusCode) : 'Permintaan gagal.',
           status: res.statusCode);
     }
     return map;
